@@ -1,0 +1,55 @@
+#!/bin/busybox sh
+#init
+
+#Set up the directory layout
+busybox mkdir dev
+busybox mkdir sys
+busybox mkdir proc
+busybox mkdir tmp
+busybox mkdir sbin
+busybox mkdir usr
+busybox mkdir root
+
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export LD_LIBRARY_PATH=/lib/
+
+# 2. Install busybox applets as symlinks
+/bin/busybox --install -s
+
+#Mount filesystem
+mount -t devtmpfs devtemps /dev
+mount -t proc proc  /proc
+mount -t sysfs none /sys
+mount -t tmpfs none /tmp
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+
+#Run sysinfo
+/bin/sysinfo
+
+# prepare key access rights because i'm not root anywhere else
+#chown -R root:root *
+chmod 700 /etc
+chmod 700 /etc/dropbear
+chmod 600 /etc/dropbear/*
+chmod 755 /lib/*
+chmod 700 /.ssh
+chmod 600 /.ssh/authorized_keys
+mv .ssh/ root/
+chown -R 0:0 root/
+
+#dropbear
+/bin/busybox ifconfig lo 127.0.0.1
+/bin/busybox ifconfig eth0 up
+/bin/busybox udhcpc -i eth0 -s /etc/udhcpc/simple.script
+
+# Run the Dropbear SSH daemon in the background
+echo "--------------------------------------------------------------"
+echo "++ Starting dropbear (ssh) daemon ++"
+echo "--------------------------------------------------------------"
+dropbearmulti dropbear -sg -R -B
+echo "--------------------------------------------------------------"
+
+#Present the user with an interactive shell
+sh
+
